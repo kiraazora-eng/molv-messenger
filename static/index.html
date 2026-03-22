@@ -2,8 +2,9 @@
 <html lang="ru">
 <head>
     <link rel="manifest" href="/manifest.json">
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Ctext y='.9em' font-size='90'%3E📱%3C/text%3E%3C/svg%3E">
 <meta name="theme-color" content="#808080">
-<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
 <meta name="apple-mobile-web-app-title" content="МОЛВЪ">
     <meta charset="UTF-8">
@@ -755,6 +756,19 @@ html, body {
             background: #b0b0b0;
             border-radius: 3px;
         }
+        /* ТЕСТ: красная панель для отладки */
+@media (max-width: 600px) {
+    .input-area {
+        display: flex !important;
+        position: fixed !important;
+        bottom: 0 !important;
+        left: 0 !important;
+        right: 0 !important;
+        background: red !important;
+        z-index: 9999 !important;
+        padding: 12px 15px !important;
+    }
+}
     </style>
 </head>
 <body>
