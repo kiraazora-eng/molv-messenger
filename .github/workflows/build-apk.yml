@@ -5,7 +5,7 @@ on:
     branches: [ main, master ]
   pull_request:
     branches: [ main, master ]
-  workflow_dispatch:  # Позволяет запускать вручную
+  workflow_dispatch:
 
 jobs:
   build:
@@ -13,31 +13,28 @@ jobs:
     
     steps:
       - name: Checkout code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: '18'
           
       - name: Setup Java
-        uses: actions/setup-java@v3
+        uses: actions/setup-java@v4
         with:
           distribution: 'temurin'
           java-version: '17'
           
       - name: Setup Android SDK
-        uses: android-actions/setup-android@v2
+        uses: android-actions/setup-android@v3
         
       - name: Install Capacitor
         run: npm install -g @capacitor/cli @capacitor/core
         
       - name: Create Capacitor project
         run: |
-          # Создаем папку для статики если её нет
           mkdir -p static
-          
-          # Инициализируем Capacitor проект
           npx cap init МОЛВЪ com.molv.messenger --web-dir=static
           
       - name: Add Android platform
@@ -45,10 +42,8 @@ jobs:
         
       - name: Configure Android permissions
         run: |
-          # Добавляем необходимые разрешения в AndroidManifest.xml
           MANIFEST_PATH="android/app/src/main/AndroidManifest.xml"
           
-          # Добавляем разрешения если их нет
           if ! grep -q "INTERNET" "$MANIFEST_PATH"; then
             sed -i 's/<application/<uses-permission android:name="android.permission.INTERNET" \/><application/' "$MANIFEST_PATH"
           fi
@@ -63,13 +58,11 @@ jobs:
       - name: Build APK
         run: |
           cd android
-          # Делаем gradlew исполняемым
           chmod +x gradlew
-          # Собираем release APK
           ./gradlew assembleRelease
           
       - name: Upload APK as artifact
-        uses: actions/upload-artifact@v3
+        uses: actions/upload-artifact@v4
         with:
           name: МОЛВЪ-мессенджер
           path: android/app/build/outputs/apk/release/*.apk
