@@ -1286,104 +1286,69 @@ html, body {
         login();
     }
     
-    // ============ SERVICE WORKER (PWA) ============
+       // ============ SERVICE WORKER (PWA) ============
     if ('serviceWorker' in navigator) {
         navigator.serviceWorker.register('/sw.js')
             .then(reg => console.log('SW registered:', reg))
             .catch(err => console.error('SW failed:', err));
     }
-       // Корректировка при открытии клавиатуры на телефоне
-window.addEventListener('resize', function() {
-    if (window.innerWidth <= 600) {
-        const inputArea = document.querySelector('.input-area');
-        const messagesArea = document.querySelector('.messages-area');
-        
-        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
-            // Клавиатура открыта
-            setTimeout(() => {
-                if (messagesArea) {
-                    messagesArea.scrollTop = messagesArea.scrollHeight;
+    
+    // ============ КОРРЕКТИРОВКА ДЛЯ ТЕЛЕФОНА ============
+    // Корректировка при открытии клавиатуры
+    window.addEventListener('resize', function() {
+        if (window.innerWidth <= 600) {
+            const messagesArea = document.querySelector('.messages-area');
+            if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+                setTimeout(() => {
+                    if (messagesArea) {
+                        messagesArea.scrollTop = messagesArea.scrollHeight;
+                    }
+                }, 100);
+            }
+        }
+    });
+
+    // Принудительное отображение панели ввода на телефоне
+    function fixMobileInput() {
+        if (window.innerWidth <= 600) {
+            const inputArea = document.getElementById('inputArea');
+            const chatHeader = document.getElementById('chatHeader');
+            
+            if (chatHeader && chatHeader.style.display === 'flex') {
+                if (inputArea) {
+                    inputArea.style.display = 'flex';
+                    inputArea.style.position = 'fixed';
+                    inputArea.style.bottom = '0';
+                    inputArea.style.left = '0';
+                    inputArea.style.right = '0';
+                    inputArea.style.zIndex = '1000';
+                    inputArea.style.background = '#e8e8e8';
                 }
-            }, 100);
-        }
-    }
-});
-
-       // Принудительное отображение панели ввода на телефоне
-function fixMobileInput() {
-    if (window.innerWidth <= 600) {
-        const inputArea = document.getElementById('inputArea');
-        const chatHeader = document.getElementById('chatHeader');
-        
-        // Если чат открыт, показываем панель ввода
-        if (chatHeader && chatHeader.style.display === 'flex') {
-            if (inputArea) {
-                inputArea.style.display = 'flex';
-                inputArea.style.position = 'fixed';
-                inputArea.style.bottom = '0';
-                inputArea.style.left = '0';
-                inputArea.style.right = '0';
-                inputArea.style.zIndex = '1000';
-                inputArea.style.background = '#e8e8e8';
             }
         }
     }
-}
 
-// Вызываем при загрузке и при открытии чата
-window.addEventListener('load', fixMobileInput);
-window.addEventListener('resize', fixMobileInput);
+    // Вызываем при загрузке и при открытии чата
+    window.addEventListener('load', fixMobileInput);
+    window.addEventListener('resize', fixMobileInput);
 
-// Переопределяем openChat для исправления панели
-if (typeof openChat === 'function') {
-    const originalOpenChat = openChat;
-    window.openChat = async function(username) {
-        await originalOpenChat(username);
-        setTimeout(fixMobileInput, 100);
-    };
-}
-   // ============ АДАПТАЦИЯ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА ============
-// Обновляем переменную vh при изменении размера
-function setVh() {
-    let vh = window.innerHeight * 0.01;
-    document.documentElement.style.setProperty('--vh', `${vh}px`);
-}
-
-window.addEventListener('resize', setVh);
-setVh();
-
-// Принудительное отображение панели ввода на телефоне
-function fixMobileView() {
-    if (window.innerWidth <= 600) {
-        const inputArea = document.getElementById('inputArea');
-        const chatHeader = document.getElementById('chatHeader');
-        
-        if (chatHeader && chatHeader.style.display === 'flex') {
-            if (inputArea) {
-                inputArea.style.display = 'flex';
-                inputArea.style.position = 'fixed';
-                inputArea.style.bottom = '0';
-                inputArea.style.left = '0';
-                inputArea.style.right = '0';
-                inputArea.style.zIndex = '1000';
-            }
-        }
+    // Переопределяем openChat для исправления панели
+    if (typeof openChat === 'function') {
+        const originalOpenChat = openChat;
+        window.openChat = async function(username) {
+            await originalOpenChat(username);
+            setTimeout(fixMobileInput, 100);
+        };
     }
-}
-
-// Вызываем при загрузке и при открытии чата
-window.addEventListener('load', fixMobileView);
-window.addEventListener('resize', fixMobileView);
-
-// Переопределяем openChat
-const originalOpenChatMobile = window.openChat;
-if (originalOpenChatMobile) {
-    window.openChat = async function(username) {
-        await originalOpenChatMobile(username);
-        setTimeout(fixMobileView, 100);
-    };
-}
-</script> 
-  
+    
+    // Обновляем переменную vh для высоты экрана
+    function setVh() {
+        let vh = window.innerHeight * 0.01;
+        document.documentElement.style.setProperty('--vh', `${vh}px`);
+    }
+    
+    window.addEventListener('resize', setVh);
+    setVh();
+</script>
 </body>
 </html>
