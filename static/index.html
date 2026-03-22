@@ -16,7 +16,24 @@
             padding: 0;
             box-sizing: border-box;
         }
-        
+        /* Фиксация при открытии клавиатуры */
+html, body {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    overflow: hidden;
+}
+
+.app-container {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+}
+
+.messages-area {
+    -webkit-overflow-scrolling: touch;
+}
         html, body {
             height: 100%;
             width: 100%;
@@ -738,455 +755,466 @@
             <button class="close-btn" onclick="closeAddFriendModal()">Отмена</button>
         </div>
     </div>
+   <script>
+    let currentUser = '';
+    let currentChatWith = '';
+    let allMessages = [];
+    let friendsList = [];
+    let socket = null;
+    let refreshInterval = null;
+    let lastRequestsCount = 0;
     
-    <script>
-        let currentUser = '';
-        let currentChatWith = '';
-        let allMessages = [];
-        let friendsList = [];
-        let socket = null;
-        let refreshInterval = null;
-        let lastRequestsCount = 0;
+    const BASE_URL = window.location.origin;
+    
+    // ============ ЭМОДЗИ (iPhone стиль) ============
+    const emojiCategories = {
+        '😊 Смайлы': ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾'],
         
-        const BASE_URL = window.location.origin;
+        '👋 Жесты': ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','👂','👃','👀','👁️','👅','👄','💋'],
         
-        // ============ ЭМОДЗИ (iPhone стиль) ============
-        const emojiCategories = {
-            '😊 Смайлы': ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','😺','😸','😹','😻','😼','😽','🙀','😿','😾'],
-            
-            '👋 Жесты': ['👋','🤚','🖐️','✋','🖖','👌','🤌','🤏','✌️','🤞','🤟','🤘','🤙','👈','👉','👆','🖕','👇','☝️','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','✍️','💅','🤳','💪','👂','👃','👀','👁️','👅','👄','💋'],
-            
-            '❤️ Сердца': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟'],
-            
-            '🍎 Еда': ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🍤','🍙','🍚','🍘','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🥤','🍵','☕','🍼','🥛','🍺','🍻'],
-            
-            '🚗 Транспорт': ['🚗','🚕','🚙','🚌','🚎','🚓','🚑','🚒','🚐','🚚','🚛','🚜','🏍️','🛵','🚲','🛴','🛹','🚂','🚆','🚇','🚊','🚉','✈️','🚀','🛸','🚁','⛵','🚤','🚢'],
-            
-            '🐱 Животные': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🐙','🦑','🐬','🐳','🐋','🦈','🐟','🐠','🐡','🦀','🐚','🐪','🦒','🦘','🦙','🦥','🦦','🦨','🦩','🦜','🕊️','🐉','🐲','🐓','🦃','🐕','🐩','🐈','🐇','🦔','🐿️'],
-            
-            '⚽ Спорт': ['⚽','🏀','🏈','⚾','🎾','🏐','🎱','🏓','🏸','🏒','🏑','🎿','⛷️','🏂','🏋️','🤼','🤸','⛹️','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎨','🎭','🎪','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎲','🎮','🕹️']
-        };
+        '❤️ Сердца': ['❤️','🧡','💛','💚','💙','💜','🖤','🤍','🤎','💔','❣️','💕','💞','💓','💗','💖','💘','💝','💟'],
         
-        function toggleEmoji() {
-            const picker = document.getElementById('emojiPicker');
-            if (picker.style.display === 'block') {
-                picker.style.display = 'none';
-            } else {
-                if (picker.innerHTML === '') {
-                    createEmojiPicker(picker);
-                }
-                picker.style.display = 'block';
+        '🍎 Еда': ['🍎','🍐','🍊','🍋','🍌','🍉','🍇','🍓','🍈','🍒','🍑','🥭','🍍','🥥','🥝','🍅','🍆','🥑','🥦','🥬','🥒','🌶️','🌽','🥕','🥔','🍠','🥐','🥯','🍞','🥖','🥨','🧀','🥚','🍳','🥞','🥓','🥩','🍗','🍖','🌭','🍔','🍟','🍕','🥪','🥙','🌮','🌯','🥗','🥘','🍝','🍜','🍲','🍛','🍣','🍱','🍤','🍙','🍚','🍘','🍡','🍧','🍨','🍦','🥧','🧁','🍰','🎂','🍮','🍭','🍬','🍫','🍿','🥤','🍵','☕','🍼','🥛','🍺','🍻'],
+        
+        '🚗 Транспорт': ['🚗','🚕','🚙','🚌','🚎','🚓','🚑','🚒','🚐','🚚','🚛','🚜','🏍️','🛵','🚲','🛴','🛹','🚂','🚆','🚇','🚊','🚉','✈️','🚀','🛸','🚁','⛵','🚤','🚢'],
+        
+        '🐱 Животные': ['🐶','🐱','🐭','🐹','🐰','🦊','🐻','🐼','🐨','🐯','🦁','🐮','🐷','🐸','🐵','🐔','🐧','🐦','🐴','🦄','🐝','🐛','🦋','🐌','🐞','🐜','🐙','🦑','🐬','🐳','🐋','🦈','🐟','🐠','🐡','🦀','🐚','🐪','🦒','🦘','🦙','🦥','🦦','🦨','🦩','🦜','🕊️','🐉','🐲','🐓','🦃','🐕','🐩','🐈','🐇','🦔','🐿️'],
+        
+        '⚽ Спорт': ['⚽','🏀','🏈','⚾','🎾','🏐','🎱','🏓','🏸','🏒','🏑','🎿','⛷️','🏂','🏋️','🤼','🤸','⛹️','🤾','🏌️','🏇','🧘','🏄','🏊','🤽','🚣','🧗','🚵','🚴','🏆','🥇','🥈','🥉','🏅','🎨','🎭','🎪','🎬','🎤','🎧','🎼','🎹','🥁','🎷','🎺','🎸','🎻','🎲','🎮','🕹️']
+    };
+    
+    function toggleEmoji() {
+        const picker = document.getElementById('emojiPicker');
+        if (picker.style.display === 'block') {
+            picker.style.display = 'none';
+        } else {
+            if (picker.innerHTML === '') {
+                createEmojiPicker(picker);
             }
+            picker.style.display = 'block';
         }
+    }
+    
+    function createEmojiPicker(container) {
+        container.innerHTML = '';
         
-        function createEmojiPicker(container) {
-            container.innerHTML = '';
+        for (const [category, emojis] of Object.entries(emojiCategories)) {
+            const categoryDiv = document.createElement('div');
+            categoryDiv.className = 'emoji-category';
             
-            for (const [category, emojis] of Object.entries(emojiCategories)) {
-                const categoryDiv = document.createElement('div');
-                categoryDiv.className = 'emoji-category';
-                
-                const titleDiv = document.createElement('div');
-                titleDiv.className = 'emoji-category-title';
-                titleDiv.textContent = category;
-                categoryDiv.appendChild(titleDiv);
-                
-                const gridDiv = document.createElement('div');
-                gridDiv.className = 'emoji-grid';
-                
-                emojis.forEach(emoji => {
-                    const emojiDiv = document.createElement('div');
-                    emojiDiv.className = 'emoji-item';
-                    emojiDiv.textContent = emoji;
-                    emojiDiv.onclick = () => {
-                        const input = document.getElementById('messageInput');
-                        input.value += emoji;
-                        input.focus();
-                        container.style.display = 'none';
-                    };
-                    gridDiv.appendChild(emojiDiv);
-                });
-                
-                categoryDiv.appendChild(gridDiv);
-                container.appendChild(categoryDiv);
-            }
-        }
-        
-        function toggleSidebar() {
-            document.getElementById('sidebar').classList.toggle('open');
-        }
-        
-        // ============ WebSocket ============
-        function initSocket() {
-            socket = io();
+            const titleDiv = document.createElement('div');
+            titleDiv.className = 'emoji-category-title';
+            titleDiv.textContent = category;
+            categoryDiv.appendChild(titleDiv);
             
-            socket.on('new_message', (msg) => {
-                console.log('Новое сообщение:', msg);
-                if ((msg.from === currentChatWith && msg.to === currentUser) || 
-                    (msg.from === currentUser && msg.to === currentChatWith)) {
-                    loadMessages();
-                }
-                loadFriends();
+            const gridDiv = document.createElement('div');
+            gridDiv.className = 'emoji-grid';
+            
+            emojis.forEach(emoji => {
+                const emojiDiv = document.createElement('div');
+                emojiDiv.className = 'emoji-item';
+                emojiDiv.textContent = emoji;
+                emojiDiv.onclick = () => {
+                    const input = document.getElementById('messageInput');
+                    input.value += emoji;
+                    input.focus();
+                    container.style.display = 'none';
+                };
+                gridDiv.appendChild(emojiDiv);
             });
             
-            socket.on('friend_request', (data) => {
-                console.log('Получена заявка от:', data.from);
-                if (data.from !== currentUser) {
-                    loadRequests();
-                    const notification = document.getElementById('requestNotification');
-                    notification.style.display = 'block';
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                    }, 5000);
-                }
-            });
-            
-            socket.on('friend_added', (data) => {
-                console.log('Друг добавлен:', data.friend);
-                loadFriends();
+            categoryDiv.appendChild(gridDiv);
+            container.appendChild(categoryDiv);
+        }
+    }
+    
+    function toggleSidebar() {
+        document.getElementById('sidebar').classList.toggle('open');
+    }
+    
+    // ============ WebSocket ============
+    function initSocket() {
+        socket = io();
+        
+        socket.on('new_message', (msg) => {
+            console.log('Новое сообщение:', msg);
+            if ((msg.from === currentChatWith && msg.to === currentUser) || 
+                (msg.from === currentUser && msg.to === currentChatWith)) {
+                loadMessages();
+            }
+            loadFriends();
+        });
+        
+        socket.on('friend_request', (data) => {
+            console.log('Получена заявка от:', data.from);
+            if (data.from !== currentUser) {
                 loadRequests();
-            });
-            
-            socket.on('presence_update', (data) => {
-                console.log('Обновление статуса:', data.user, data.online);
-                loadFriends();
-                if (currentChatWith === data.user) {
-                    document.getElementById('chatWithStatus').innerHTML = data.online ? '🟢 онлайн' : '⚪ офлайн';
-                }
-            });
-            
-            socket.on('connect', () => {
-                console.log('WebSocket подключен');
-                if (currentUser) {
-                    socket.emit('register_online', { username: currentUser });
-                }
-            });
-        }
-        
-        // ============ Вход ============
-        async function login() {
-            const input = document.getElementById('username');
-            currentUser = input.value.trim();
-            if (!currentUser) { alert('Введите имя'); return; }
-            
-            try {
-                const response = await fetch(`${BASE_URL}/api/login`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ username: currentUser })
-                });
-                
-                if (response.ok) {
-                    document.getElementById('loginScreen').style.display = 'none';
-                    document.getElementById('appContainer').classList.remove('hidden');
-                    document.getElementById('userName').innerText = currentUser;
-                    
-                    initSocket();
-                    await loadFriends();
-                    await loadRequests();
-                    
-                    // Регистрируем онлайн через WebSocket
-                    if (socket && socket.connected) {
-                        socket.emit('register_online', { username: currentUser });
-                    }
-                    
-                    // Периодическое обновление (на случай проблем с WebSocket)
-                    refreshInterval = setInterval(() => {
-                        loadFriends();
-                        loadRequests();
-                        if (currentChatWith) loadMessages();
-                    }, 3000);
-                }
-            } catch (error) {
-                alert('Ошибка подключения: ' + error.message);
-            }
-        }
-        
-        // ============ Друзья ============
-        async function loadFriends() {
-            try {
-                const response = await fetch(`${BASE_URL}/api/friends/${encodeURIComponent(currentUser)}`);
-                friendsList = await response.json();
-                const container = document.getElementById('friendsList');
-                
-                if (friendsList.length === 0) {
-                    container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">У вас пока нет друзей<br>Нажмите ➕ чтобы добавить</div>';
-                    return;
-                }
-                
-                container.innerHTML = '';
-                friendsList.forEach(friend => {
-                    const div = document.createElement('div');
-                    div.className = `friend-item ${currentChatWith === friend.name ? 'active' : ''}`;
-                    div.onclick = () => openChat(friend.name);
-                    div.innerHTML = `
-                        <div class="friend-avatar">👤</div>
-                        <div class="friend-info">
-                            <div class="friend-name">${escapeHtml(friend.name)}</div>
-                            <div class="friend-status">
-                                <span class="online-dot ${friend.online ? 'online' : 'offline'}"></span>
-                                ${friend.online ? 'онлайн' : 'офлайн'}
-                            </div>
-                        </div>
-                        ${friend.unread > 0 ? `<div class="unread-badge">${friend.unread}</div>` : ''}
-                    `;
-                    container.appendChild(div);
-                });
-            } catch (error) { 
-                console.error('Ошибка загрузки друзей:', error); 
-            }
-        }
-        
-        // ============ Заявки ============
-        async function loadRequests() {
-            try {
-                const response = await fetch(`${BASE_URL}/api/friend_requests/${encodeURIComponent(currentUser)}`);
-                const requests = await response.json();
-                const section = document.getElementById('requestsSection');
-                const container = document.getElementById('requestsList');
                 const notification = document.getElementById('requestNotification');
-                
-                if (requests.length > lastRequestsCount && lastRequestsCount !== 0) {
-                    notification.style.display = 'block';
-                    setTimeout(() => {
-                        notification.style.display = 'none';
-                    }, 5000);
-                }
-                lastRequestsCount = requests.length;
-                
-                if (requests.length === 0) {
-                    section.style.display = 'none';
-                    return;
-                }
-                
-                section.style.display = 'block';
-                container.innerHTML = '';
-                requests.forEach(req => {
-                    const div = document.createElement('div');
-                    div.className = 'request-item';
-                    div.innerHTML = `
-                        <span>${escapeHtml(req)}</span>
-                        <div>
-                            <button class="btn-accept" onclick="acceptFriend('${escapeHtml(req)}')">✓ Принять</button>
-                            <button class="btn-reject" onclick="rejectFriend('${escapeHtml(req)}')">✗ Отклонить</button>
-                        </div>
-                    `;
-                    container.appendChild(div);
-                });
-            } catch (error) { 
-                console.error('Ошибка загрузки заявок:', error); 
-            }
-        }
-        
-        function acceptFriend(friendName) {
-            if (socket) {
-                socket.emit('accept_friend', { current: currentUser, friend: friendName });
-            }
-            // REST запрос для надёжности
-            fetch(`${BASE_URL}/api/accept_friend`, {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ current: currentUser, friend: friendName })
-            });
-            alert(`✓ ${friendName} теперь ваш друг!`);
-            setTimeout(() => {
-                loadFriends();
-                loadRequests();
-            }, 500);
-        }
-        
-        function rejectFriend(friendName) {
-            if (socket) {
-                socket.emit('reject_friend', { current: currentUser, friend: friendName });
-            }
-            alert(`✗ Заявка от ${friendName} отклонена`);
-            loadRequests();
-        }
-        
-        // ============ Поиск ============
-        function openAddFriendModal() {
-            document.getElementById('addFriendModal').style.display = 'flex';
-            document.getElementById('searchInput').value = '';
-            document.getElementById('searchResults').innerHTML = '';
-        }
-        
-        function closeAddFriendModal() {
-            document.getElementById('addFriendModal').style.display = 'none';
-        }
-        
-        document.getElementById('searchInput')?.addEventListener('input', async (e) => {
-            const query = e.target.value.trim().toLowerCase();
-            if (query.length < 2) {
-                document.getElementById('searchResults').innerHTML = '';
-                return;
-            }
-            try {
-                const response = await fetch(`${BASE_URL}/api/users`);
-                const users = await response.json();
-                const filtered = users.filter(u => u.name.toLowerCase().includes(query) && u.name !== currentUser);
-                const container = document.getElementById('searchResults');
-                
-                if (filtered.length === 0) {
-                    container.innerHTML = '<div style="padding: 10px; color: #888;">Ничего не найдено</div>';
-                    return;
-                }
-                
-                container.innerHTML = '';
-                filtered.forEach(user => {
-                    const div = document.createElement('div');
-                    div.className = 'search-result-item';
-                    div.innerHTML = `
-                        <span>${escapeHtml(user.name)} ${user.online ? '🟢' : '⚪'}</span>
-                        <button onclick="sendFriendRequest('${user.name}')">Добавить</button>
-                    `;
-                    container.appendChild(div);
-                });
-            } catch (error) {
-                console.error('Ошибка поиска:', error);
+                notification.style.display = 'block';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 5000);
             }
         });
         
-        function sendFriendRequest(toUser) {
-            if (socket) {
-                socket.emit('add_friend', { from: currentUser, to: toUser });
-                console.log('Заявка отправлена через WebSocket:', toUser);
-            } else {
-                console.log('WebSocket не подключен');
-                fetch(`${BASE_URL}/api/add_friend`, {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ from: currentUser, to: toUser })
-                });
-            }
-            alert(`Заявка отправлена пользователю ${toUser}`);
-            closeAddFriendModal();
-        }
+        socket.on('friend_added', (data) => {
+            console.log('Друг добавлен:', data.friend);
+            loadFriends();
+            loadRequests();
+        });
         
-        // ============ Чат ============
-        async function openChat(username) {
-            currentChatWith = username;
-            document.getElementById('chatHeader').style.display = 'flex';
-            document.getElementById('inputArea').style.display = 'flex';
-            document.getElementById('chatWithName').innerText = username;
-            const friend = friendsList.find(f => f.name === username);
-            document.getElementById('chatWithStatus').innerHTML = friend?.online ? '🟢 онлайн' : '⚪ офлайн';
-            await loadMessages();
+        socket.on('presence_update', (data) => {
+            console.log('Обновление статуса:', data.user, data.online);
+            loadFriends();
+            if (currentChatWith === data.user) {
+                document.getElementById('chatWithStatus').innerHTML = data.online ? '🟢 онлайн' : '⚪ офлайн';
+            }
+        });
+        
+        socket.on('connect', () => {
+            console.log('WebSocket подключен');
+            if (currentUser) {
+                socket.emit('register_online', { username: currentUser });
+            }
+        });
+    }
+    
+    // ============ Вход ============
+    async function login() {
+        const input = document.getElementById('username');
+        currentUser = input.value.trim();
+        if (!currentUser) { alert('Введите имя'); return; }
+        
+        try {
+            const response = await fetch(`${BASE_URL}/api/login`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ username: currentUser })
+            });
             
-            if (window.innerWidth <= 600) {
-                document.getElementById('sidebar').classList.remove('open');
+            if (response.ok) {
+                document.getElementById('loginScreen').style.display = 'none';
+                document.getElementById('appContainer').classList.remove('hidden');
+                document.getElementById('userName').innerText = currentUser;
+                
+                // Сохраняем имя пользователя для автовхода
+                localStorage.setItem('molv_user', currentUser);
+                
+                initSocket();
+                await loadFriends();
+                await loadRequests();
+                
+                // Регистрируем онлайн через WebSocket
+                if (socket && socket.connected) {
+                    socket.emit('register_online', { username: currentUser });
+                }
+                
+                // Периодическое обновление (на случай проблем с WebSocket)
+                refreshInterval = setInterval(() => {
+                    loadFriends();
+                    loadRequests();
+                    if (currentChatWith) loadMessages();
+                }, 3000);
             }
+        } catch (error) {
+            alert('Ошибка подключения: ' + error.message);
         }
-        
-        async function loadMessages() {
-            if (!currentChatWith) return;
-            try {
-                const response = await fetch(`${BASE_URL}/api/messages/${encodeURIComponent(currentUser)}`);
-                const messages = await response.json();
-                const chatMessages = messages.filter(m => 
-                    (m.from === currentUser && m.to === currentChatWith) ||
-                    (m.from === currentChatWith && m.to === currentUser)
-                );
-                allMessages = chatMessages.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
-                renderMessages();
-                loadFriends();
-            } catch (error) { 
-                console.error('Ошибка загрузки сообщений:', error); 
-            }
-        }
-        
-        function renderMessages() {
-            const container = document.getElementById('messagesArea');
-            if (allMessages.length === 0) {
-                container.innerHTML = '<div class="empty-chat">Нет сообщений</div>';
+    }
+    
+    // ============ Друзья ============
+    async function loadFriends() {
+        try {
+            const response = await fetch(`${BASE_URL}/api/friends/${encodeURIComponent(currentUser)}`);
+            friendsList = await response.json();
+            const container = document.getElementById('friendsList');
+            
+            if (friendsList.length === 0) {
+                container.innerHTML = '<div style="padding: 20px; text-align: center; color: #888;">У вас пока нет друзей<br>Нажмите ➕ чтобы добавить</div>';
                 return;
             }
+            
             container.innerHTML = '';
-            allMessages.forEach(msg => {
-                const isMy = msg.from === currentUser;
+            friendsList.forEach(friend => {
                 const div = document.createElement('div');
-                div.className = `message ${isMy ? 'sent' : 'received'}`;
-                let content = '';
-                if (msg.text) content += `<div class="message-text">${escapeHtml(msg.text)}</div>`;
-                if (msg.image) content += `<img src="${msg.image}" class="message-image" onclick="window.open('${msg.image}')">`;
+                div.className = `friend-item ${currentChatWith === friend.name ? 'active' : ''}`;
+                div.onclick = () => openChat(friend.name);
                 div.innerHTML = `
-                    <div class="bubble">
-                        ${content}
-                        <div class="message-time">
-                            ${msg.time}
-                            ${isMy ? `<span class="read-status ${msg.read ? 'read' : 'unread'}"></span>` : ''}
+                    <div class="friend-avatar">👤</div>
+                    <div class="friend-info">
+                        <div class="friend-name">${escapeHtml(friend.name)}</div>
+                        <div class="friend-status">
+                            <span class="online-dot ${friend.online ? 'online' : 'offline'}"></span>
+                            ${friend.online ? 'онлайн' : 'офлайн'}
                         </div>
+                    </div>
+                    ${friend.unread > 0 ? `<div class="unread-badge">${friend.unread}</div>` : ''}
+                `;
+                container.appendChild(div);
+            });
+        } catch (error) { 
+            console.error('Ошибка загрузки друзей:', error); 
+        }
+    }
+    
+    // ============ Заявки ============
+    async function loadRequests() {
+        try {
+            const response = await fetch(`${BASE_URL}/api/friend_requests/${encodeURIComponent(currentUser)}`);
+            const requests = await response.json();
+            const section = document.getElementById('requestsSection');
+            const container = document.getElementById('requestsList');
+            const notification = document.getElementById('requestNotification');
+            
+            if (requests.length > lastRequestsCount && lastRequestsCount !== 0) {
+                notification.style.display = 'block';
+                setTimeout(() => {
+                    notification.style.display = 'none';
+                }, 5000);
+            }
+            lastRequestsCount = requests.length;
+            
+            if (requests.length === 0) {
+                section.style.display = 'none';
+                return;
+            }
+            
+            section.style.display = 'block';
+            container.innerHTML = '';
+            requests.forEach(req => {
+                const div = document.createElement('div');
+                div.className = 'request-item';
+                div.innerHTML = `
+                    <span>${escapeHtml(req)}</span>
+                    <div>
+                        <button class="btn-accept" onclick="acceptFriend('${escapeHtml(req)}')">✓ Принять</button>
+                        <button class="btn-reject" onclick="rejectFriend('${escapeHtml(req)}')">✗ Отклонить</button>
                     </div>
                 `;
                 container.appendChild(div);
             });
-            container.scrollTop = container.scrollHeight;
+        } catch (error) { 
+            console.error('Ошибка загрузки заявок:', error); 
         }
-        
-        function sendMessage() {
-            const input = document.getElementById('messageInput');
-            const text = input.value.trim();
-            if (!text || !currentChatWith) return;
+    }
+    
+    function acceptFriend(friendName) {
+        if (socket) {
+            socket.emit('accept_friend', { current: currentUser, friend: friendName });
+        }
+        // REST запрос для надёжности
+        fetch(`${BASE_URL}/api/accept_friend`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ current: currentUser, friend: friendName })
+        });
+        alert(`✓ ${friendName} теперь ваш друг!`);
+        setTimeout(() => {
+            loadFriends();
+            loadRequests();
+        }, 500);
+    }
+    
+    function rejectFriend(friendName) {
+        if (socket) {
+            socket.emit('reject_friend', { current: currentUser, friend: friendName });
+        }
+        alert(`✗ Заявка от ${friendName} отклонена`);
+        loadRequests();
+    }
+    
+    // ============ Поиск ============
+    function openAddFriendModal() {
+        document.getElementById('addFriendModal').style.display = 'flex';
+        document.getElementById('searchInput').value = '';
+        document.getElementById('searchResults').innerHTML = '';
+    }
+    
+    function closeAddFriendModal() {
+        document.getElementById('addFriendModal').style.display = 'none';
+    }
+    
+    document.getElementById('searchInput')?.addEventListener('input', async (e) => {
+        const query = e.target.value.trim().toLowerCase();
+        if (query.length < 2) {
+            document.getElementById('searchResults').innerHTML = '';
+            return;
+        }
+        try {
+            const response = await fetch(`${BASE_URL}/api/users`);
+            const users = await response.json();
+            const filtered = users.filter(u => u.name.toLowerCase().includes(query) && u.name !== currentUser);
+            const container = document.getElementById('searchResults');
             
-            if (socket) {
-                socket.emit('send_message', {
-                    from: currentUser,
-                    to: currentChatWith,
-                    text: text
-                });
-            } else {
-                console.log('WebSocket не подключен');
+            if (filtered.length === 0) {
+                container.innerHTML = '<div style="padding: 10px; color: #888;">Ничего не найдено</div>';
+                return;
             }
             
-            input.value = '';
-            
-            const tempMsg = {
+            container.innerHTML = '';
+            filtered.forEach(user => {
+                const div = document.createElement('div');
+                div.className = 'search-result-item';
+                div.innerHTML = `
+                    <span>${escapeHtml(user.name)} ${user.online ? '🟢' : '⚪'}</span>
+                    <button onclick="sendFriendRequest('${user.name}')">Добавить</button>
+                `;
+                container.appendChild(div);
+            });
+        } catch (error) {
+            console.error('Ошибка поиска:', error);
+        }
+    });
+    
+    function sendFriendRequest(toUser) {
+        if (socket) {
+            socket.emit('add_friend', { from: currentUser, to: toUser });
+            console.log('Заявка отправлена через WebSocket:', toUser);
+        } else {
+            console.log('WebSocket не подключен');
+            fetch(`${BASE_URL}/api/add_friend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from: currentUser, to: toUser })
+            });
+        }
+        alert(`Заявка отправлена пользователю ${toUser}`);
+        closeAddFriendModal();
+    }
+    
+    // ============ Чат ============
+    async function openChat(username) {
+        currentChatWith = username;
+        document.getElementById('chatHeader').style.display = 'flex';
+        document.getElementById('inputArea').style.display = 'flex';
+        document.getElementById('chatWithName').innerText = username;
+        const friend = friendsList.find(f => f.name === username);
+        document.getElementById('chatWithStatus').innerHTML = friend?.online ? '🟢 онлайн' : '⚪ офлайн';
+        await loadMessages();
+        
+        if (window.innerWidth <= 600) {
+            document.getElementById('sidebar').classList.remove('open');
+        }
+    }
+    
+    async function loadMessages() {
+        if (!currentChatWith) return;
+        try {
+            const response = await fetch(`${BASE_URL}/api/messages/${encodeURIComponent(currentUser)}`);
+            const messages = await response.json();
+            const chatMessages = messages.filter(m => 
+                (m.from === currentUser && m.to === currentChatWith) ||
+                (m.from === currentChatWith && m.to === currentUser)
+            );
+            allMessages = chatMessages.sort((a,b) => (a.timestamp || 0) - (b.timestamp || 0));
+            renderMessages();
+            loadFriends();
+        } catch (error) { 
+            console.error('Ошибка загрузки сообщений:', error); 
+        }
+    }
+    
+    function renderMessages() {
+        const container = document.getElementById('messagesArea');
+        if (allMessages.length === 0) {
+            container.innerHTML = '<div class="empty-chat">Нет сообщений</div>';
+            return;
+        }
+        container.innerHTML = '';
+        allMessages.forEach(msg => {
+            const isMy = msg.from === currentUser;
+            const div = document.createElement('div');
+            div.className = `message ${isMy ? 'sent' : 'received'}`;
+            let content = '';
+            if (msg.text) content += `<div class="message-text">${escapeHtml(msg.text)}</div>`;
+            if (msg.image) content += `<img src="${msg.image}" class="message-image" onclick="window.open('${msg.image}')">`;
+            div.innerHTML = `
+                <div class="bubble">
+                    ${content}
+                    <div class="message-time">
+                        ${msg.time}
+                        ${isMy ? `<span class="read-status ${msg.read ? 'read' : 'unread'}"></span>` : ''}
+                    </div>
+                </div>
+            `;
+            container.appendChild(div);
+        });
+        container.scrollTop = container.scrollHeight;
+    }
+    
+    function sendMessage() {
+        const input = document.getElementById('messageInput');
+        const text = input.value.trim();
+        if (!text || !currentChatWith) return;
+        
+        if (socket) {
+            socket.emit('send_message', {
                 from: currentUser,
                 to: currentChatWith,
-                text: text,
-                time: new Date().toLocaleTimeString().slice(0,5),
-                timestamp: Date.now() / 1000
-            };
-            allMessages.push(tempMsg);
-            renderMessages();
+                text: text
+            });
+        } else {
+            console.log('WebSocket не подключен');
         }
         
-        async function sendPhoto() {
-            if (!currentChatWith) return;
-            alert('Функция отправки фото будет добавлена позже');
-        }
+        input.value = '';
         
-        function logout() {
-            if (refreshInterval) clearInterval(refreshInterval);
-            if (socket) {
-                socket.emit('unregister_online', { username: currentUser });
-                socket.disconnect();
-            }
-            currentUser = '';
-            currentChatWith = '';
-            document.getElementById('loginScreen').style.display = 'flex';
-            document.getElementById('appContainer').classList.add('hidden');
+        const tempMsg = {
+            from: currentUser,
+            to: currentChatWith,
+            text: text,
+            time: new Date().toLocaleTimeString().slice(0,5),
+            timestamp: Date.now() / 1000
+        };
+        allMessages.push(tempMsg);
+        renderMessages();
+    }
+    
+    async function sendPhoto() {
+        if (!currentChatWith) return;
+        alert('Функция отправки фото будет добавлена позже');
+    }
+    
+    function logout() {
+        if (refreshInterval) clearInterval(refreshInterval);
+        if (socket) {
+            socket.emit('unregister_online', { username: currentUser });
+            socket.disconnect();
         }
-        
-        function escapeHtml(text) {
-            if (!text) return '';
-            const div = document.createElement('div');
-            div.textContent = text;
-            return div.innerHTML;
+        currentUser = '';
+        currentChatWith = '';
+        document.getElementById('loginScreen').style.display = 'flex';
+        document.getElementById('appContainer').classList.add('hidden');
+    }
+    
+    function escapeHtml(text) {
+        if (!text) return '';
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
+    }
+    
+    document.addEventListener('click', (e) => {
+        const picker = document.getElementById('emojiPicker');
+        if (picker && !picker.contains(e.target) && !e.target.classList.contains('input-btn')) {
+            picker.style.display = 'none';
         }
-        
-        document.addEventListener('click', (e) => {
-            const picker = document.getElementById('emojiPicker');
-            if (picker && !picker.contains(e.target) && !e.target.classList.contains('input-btn')) {
-                picker.style.display = 'none';
-            }
-        });
-    </script>
-    <script>
-if ('serviceWorker' in navigator) {
-  navigator.serviceWorker.register('/sw.js')
-    .then(reg => console.log('SW registered:', reg))
-    .catch(err => console.error('SW failed:', err));
-}
-</script>
+    });
+    
+    // ============ АВТОВХОД ============
+    // Автоматический вход, если пользователь уже заходил
+    const savedUser = localStorage.getItem('molv_user');
+    if (savedUser) {
+        document.getElementById('username').value = savedUser;
+        login();
+    }
+    
+    // ============ SERVICE WORKER (PWA) ============
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register('/sw.js')
+            .then(reg => console.log('SW registered:', reg))
+            .catch(err => console.error('SW failed:', err));
+    }
+</script> 
+  
 </body>
 </html>
