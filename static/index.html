@@ -623,9 +623,27 @@ html, body {
             z-index: 101;
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
-        
-        /* Принудительное отображение панели ввода на телефоне */
+        /* ========== АДАПТАЦИЯ ПОД TELEGRAM (МОБИЛЬНАЯ ВЕРСИЯ) ========== */
+
+/* Переменная для высоты экрана на мобильных */
+:root {
+    --vh: 1vh;
+}
+
+/* Безопасные зоны для iPhone */
+@supports (padding: max(0px)) {
+    .input-area {
+        padding-bottom: max(12px, env(safe-area-inset-bottom));
+    }
+    
+    .messages-area {
+        padding-bottom: max(15px, env(safe-area-inset-bottom));
+    }
+}
+
+/* Исправление для мобильных */
 @media (max-width: 600px) {
+    /* Фиксированная панель ввода */
     .input-area {
         position: fixed;
         bottom: 0;
@@ -636,12 +654,11 @@ html, body {
         z-index: 1000;
         border-top: 1px solid #d0d0d0;
         display: flex !important;
+        gap: 8px;
+        align-items: center;
     }
     
-    .chat-main {
-        padding-bottom: 70px;
-    }
-    
+    /* Область сообщений с отступом снизу под панель */
     .messages-area {
         padding-bottom: 80px;
         margin-bottom: 0;
@@ -650,22 +667,72 @@ html, body {
         height: calc(100vh - 120px);
     }
     
+    /* Основной контейнер чата */
+    .chat-main {
+        position: relative;
+        height: 100vh;
+        display: flex;
+        flex-direction: column;
+    }
+    
+    /* Шапка чата */
     .chat-header {
         position: sticky;
         top: 0;
         z-index: 10;
+        background: #808080;
     }
     
+    /* Боковая панель */
     .sidebar {
-        z-index: 2000;
+        position: fixed;
+        left: -280px;
+        top: 0;
+        height: 100%;
+        z-index: 100;
+        width: 280px;
+        background: #e6e6e6;
+        transition: left 0.3s ease;
+    }
+    
+    .sidebar.open {
+        left: 0;
+    }
+    
+    /* Кнопка меню */
+    .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 101;
+        width: 52px;
+        height: 52px;
+        background: #808080;
+        color: white;
+        border: none;
+        border-radius: 50%;
+        font-size: 24px;
+        cursor: pointer;
+        box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+    }
+    
+    /* Панель эмодзи */
+    .emoji-picker {
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 320px;
+        bottom: 70px;
+        position: fixed;
+    }
+    
+    .emoji-grid {
+        grid-template-columns: repeat(7, 1fr);
     }
 }
-
-/* Базовые стили для панели ввода */
-.input-area {
-    display: flex;
-}
-        
         @media (min-width: 601px) {
             .mobile-menu-btn {
                 display: none;
@@ -1275,13 +1342,22 @@ if (typeof openChat === 'function') {
         setTimeout(fixMobileInput, 100);
     };
 }
-       // ============ ФИКС ДЛЯ ТЕЛЕФОНА ============
-function fixMobileInput() {
+   // ============ АДАПТАЦИЯ ПОД МОБИЛЬНЫЕ УСТРОЙСТВА ============
+// Обновляем переменную vh при изменении размера
+function setVh() {
+    let vh = window.innerHeight * 0.01;
+    document.documentElement.style.setProperty('--vh', `${vh}px`);
+}
+
+window.addEventListener('resize', setVh);
+setVh();
+
+// Принудительное отображение панели ввода на телефоне
+function fixMobileView() {
     if (window.innerWidth <= 600) {
         const inputArea = document.getElementById('inputArea');
         const chatHeader = document.getElementById('chatHeader');
         
-        // Если чат открыт, показываем панель ввода
         if (chatHeader && chatHeader.style.display === 'flex') {
             if (inputArea) {
                 inputArea.style.display = 'flex';
@@ -1290,24 +1366,21 @@ function fixMobileInput() {
                 inputArea.style.left = '0';
                 inputArea.style.right = '0';
                 inputArea.style.zIndex = '1000';
-                inputArea.style.backgroundColor = '#e8e8e8';
-                inputArea.style.padding = '12px 15px';
-                inputArea.style.borderTop = '1px solid #d0d0d0';
             }
         }
     }
 }
 
-// Вызываем после загрузки и при изменении размера
-window.addEventListener('load', fixMobileInput);
-window.addEventListener('resize', fixMobileInput);
+// Вызываем при загрузке и при открытии чата
+window.addEventListener('load', fixMobileView);
+window.addEventListener('resize', fixMobileView);
 
-// Переопределяем openChat для исправления после открытия чата
-const originalOpenChatFix = window.openChat;
-if (originalOpenChatFix) {
+// Переопределяем openChat
+const originalOpenChatMobile = window.openChat;
+if (originalOpenChatMobile) {
     window.openChat = async function(username) {
-        await originalOpenChatFix(username);
-        setTimeout(fixMobileInput, 100);
+        await originalOpenChatMobile(username);
+        setTimeout(fixMobileView, 100);
     };
 }
 </script> 
