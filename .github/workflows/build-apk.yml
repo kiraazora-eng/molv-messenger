@@ -92,26 +92,3 @@ jobs:
           name: МОЛВЪ-мессенджер
           path: android/app/build/outputs/apk/release/*.apk
           retention-days: 30
-          
-      - name: Create Release
-        if: github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master'
-        uses: softprops/action-gh-release@v1
-        with:
-          tag_name: v1.0.0
-          name: МОЛВЪ v1.0.0
-          body: |
-            ## МОЛВЪ мессенджер
-            
-            ### Что нового:
-            - Первая версия мессенджера
-            - Поддержка Android
-            - Обмен сообщениями в реальном времени
-            - Добавление друзей
-            
-            ### Установка:
-            1. Скачайте APK файл ниже
-            2. Разрешите установку из неизвестных источников
-            3. Установите приложение
-          files: android/app/build/outputs/apk/release/*.apk
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
