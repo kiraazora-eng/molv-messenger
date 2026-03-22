@@ -1275,6 +1275,41 @@ if (typeof openChat === 'function') {
         setTimeout(fixMobileInput, 100);
     };
 }
+       // ============ ФИКС ДЛЯ ТЕЛЕФОНА ============
+function fixMobileInput() {
+    if (window.innerWidth <= 600) {
+        const inputArea = document.getElementById('inputArea');
+        const chatHeader = document.getElementById('chatHeader');
+        
+        // Если чат открыт, показываем панель ввода
+        if (chatHeader && chatHeader.style.display === 'flex') {
+            if (inputArea) {
+                inputArea.style.display = 'flex';
+                inputArea.style.position = 'fixed';
+                inputArea.style.bottom = '0';
+                inputArea.style.left = '0';
+                inputArea.style.right = '0';
+                inputArea.style.zIndex = '1000';
+                inputArea.style.backgroundColor = '#e8e8e8';
+                inputArea.style.padding = '12px 15px';
+                inputArea.style.borderTop = '1px solid #d0d0d0';
+            }
+        }
+    }
+}
+
+// Вызываем после загрузки и при изменении размера
+window.addEventListener('load', fixMobileInput);
+window.addEventListener('resize', fixMobileInput);
+
+// Переопределяем openChat для исправления после открытия чата
+const originalOpenChatFix = window.openChat;
+if (originalOpenChatFix) {
+    window.openChat = async function(username) {
+        await originalOpenChatFix(username);
+        setTimeout(fixMobileInput, 100);
+    };
+}
 </script> 
   
 </body>
