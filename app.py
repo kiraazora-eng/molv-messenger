@@ -1,8 +1,8 @@
+import os
 from flask import Flask, send_from_directory, request, jsonify
 from flask_socketio import SocketIO, emit
 import json
 import time
-import os
 import uuid
 
 app = Flask(__name__, static_folder='static')
@@ -18,7 +18,14 @@ online_users = set()
 
 @app.route('/')
 def index():
+    print("=== Root route called ===")
+    print("Current directory:", os.getcwd())
+    print("Files in static:", os.listdir('static') if os.path.exists('static') else "static not found")
     return send_from_directory('static', 'index.html')
+
+@app.route('/test')
+def test():
+    return "Сервер работает! ✅"
 
 @app.route('/api/login', methods=['POST'])
 def login():
@@ -31,7 +38,6 @@ def login():
         friend_requests[username] = []
     
     online_users.add(username)
-    
     return jsonify({'status': 'ok', 'username': username})
 
 @app.route('/api/users')
@@ -42,24 +48,32 @@ def get_users():
 @app.route('/api/friends/<username>')
 def get_friends(username):
     user_friends = friends.get(username, [])
-    result = []
-    for f in user_friends:
-        result.append({
-            'name': f,
-            'online': f in online_users,
-            'unread': 0
-        })
+    result = [{'name': f, 'online': f in online_users, 'unread': 0} for f in user_friends]
     return jsonify(result)
 
 @app.route('/api/friend_requests/<username>')
 def get_friend_requests(username):
-    requests = friend_requests.get(username, [])
-    return jsonify(requests)
+    return jsonify(friend_requests.get(username, []))
 
 @app.route('/api/messages/<username>')
 def get_messages(username):
     user_messages = [m for m in messages if m.get('to') == username or m.get('from') == username]
     return jsonify(user_messages)
+
+@socketio.on('send_message')
+def handle_send_message(data):
+    message = {
+        'id': str(uuid.uuid4())[:8],
+        'from': data['from'],
+        'to': data['to'],
+        'text': data.get('text', ''),
+        'time': time.strftime('%H:%M'),
+        'timestamp': time.time(),
+        'read': False
+    }
+    messages.append(message)
+    emit('new_message', message, room=data['to'])
+    emit('message_sent', message, room=data['from'])
 
 @socketio.on('add_friend')
 def handle_add_friend(data):
@@ -68,10 +82,6 @@ def handle_add_friend(data):
     
     if to_user not in users:
         emit('error', {'message': 'Пользователь не найден'})
-        return
-    
-    if to_user in friends.get(from_user, []):
-        emit('error', {'message': 'Уже в друзьях'})
         return
     
     if to_user not in friend_requests:
@@ -102,43 +112,12 @@ def handle_accept_friend(data):
     emit('friend_added', {'friend': friend_user}, room=current_user)
     emit('friend_added', {'friend': current_user}, room=friend_user)
 
-@socketio.on('send_message')
-def handle_send_message(data):
-    message = {
-        'id': str(uuid.uuid4())[:8],
-        'from': data['from'],
-        'to': data['to'],
-        'text': data.get('text', ''),
-        'image': data.get('image', ''),
-        'time': time.strftime('%H:%M'),
-        'timestamp': time.time(),
-        'read': False
-    }
-    messages.append(message)
-    
-    emit('new_message', message, room=data['to'])
-    emit('message_sent', message, room=data['from'])
-
 @socketio.on('register_online')
 def handle_register_online(data):
     username = data.get('username')
     if username:
         online_users.add(username)
-        for friend in friends.get(username, []):
-            emit('presence_update', {
-                'user': username,
-                'online': True
-            }, room=friend)
 
-@socketio.on('connect')
-def handle_connect():
-    print('Client connected')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Client disconnected')
-
-# Для Railway
 application = app
 
 if __name__ == '__main__':
