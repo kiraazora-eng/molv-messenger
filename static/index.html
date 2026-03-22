@@ -32,11 +32,10 @@
             position: relative;
         }
         
-        /* Кнопка меню для мобильных */
         .menu-toggle {
             display: none;
             position: fixed;
-            top: 12px;
+            top: 18px;
             left: 12px;
             z-index: 101;
             background: #808080;
@@ -50,7 +49,6 @@
             box-shadow: 0 2px 5px rgba(0,0,0,0.2);
         }
         
-        /* Боковая панель */
         .sidebar {
             width: 320px;
             background: #e6e6e6;
@@ -64,7 +62,7 @@
         .sidebar-header {
             background: #808080;
             color: white;
-            padding: 12px 15px;
+            padding: 15px 15px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -142,6 +140,7 @@
             padding: 6px 14px;
             border-radius: 6px;
             cursor: pointer;
+            margin-right: 5px;
         }
         
         .btn-reject {
@@ -204,7 +203,6 @@
             font-size: 14px;
         }
         
-        /* Чат */
         .chat-main {
             flex: 1;
             display: flex;
@@ -216,7 +214,7 @@
         .chat-header {
             background: #808080;
             color: white;
-            padding: 12px 20px;
+            padding: 15px 20px;
             display: flex;
             align-items: center;
             gap: 12px;
@@ -339,7 +337,6 @@
             padding: 4px;
         }
         
-        /* Модальное окно */
         .modal {
             position: fixed;
             top: 0;
@@ -444,10 +441,11 @@
             padding: 40px;
         }
         
-        /* Адаптация для телефона */
         @media (max-width: 600px) {
             .menu-toggle {
                 display: block;
+                top: 18px;
+                left: 12px;
             }
             
             .sidebar {
@@ -538,10 +536,10 @@
         let friendsList = [];
         let socket = null;
         let lastRequestsCount = 0;
+        let refreshInterval = null;
         
         const BASE_URL = window.location.origin;
         
-        // Эмодзи
         const emojis = ['😀','😃','😄','😁','😆','😅','😂','🤣','😊','😇','🙂','🙃','😉','😌','😍','🥰','😘','😗','😙','😚','😋','😛','😝','😜','🤪','🤨','🧐','🤓','😎','🤩','🥳','😏','😒','😞','😔','😟','😕','🙁','☹️','😣','😖','😫','😩','🥺','😢','😭','😤','😠','😡','🤬','🤯','😳','🥵','🥶','😱','😨','😰','😥','😓','🤗','🤔','🤭','🤫','🤥','😶','😐','😑','😬','🙄','😯','😦','😧','😮','😲','🥱','😴','🤤','😪','😵','🤐','🥴','🤢','🤮','🤧','😷','🤒','🤕','🤑','🤠','😈','👿','👹','👺','🤡','💩','👻','💀','☠️','👽','👾','🤖','🎃','👍','👎','👊','✊','🤛','🤜','👏','🙌','👐','🤲','🤝','🙏','❤️','🧡','💛','💚','💙','💜','🖤','💔','💕','💞','💓','💗','💖','💘','💝'];
         
         function toggleEmoji() {
@@ -622,6 +620,14 @@
                     await loadRequests();
                     
                     socket.emit('register_online', { username: currentUser });
+                    
+                    // Автообновление каждые 3 секунды (на случай проблем с WebSocket)
+                    if (refreshInterval) clearInterval(refreshInterval);
+                    refreshInterval = setInterval(() => {
+                        loadFriends();
+                        loadRequests();
+                        if (currentChatWith) loadMessages();
+                    }, 3000);
                 }
             } catch (error) {
                 alert('Ошибка подключения');
@@ -649,7 +655,6 @@
                             <span class="online-status ${friend.online ? 'online' : ''}"></span>
                             <span class="friend-name">${escapeHtml(friend.name)}</span>
                         </div>
-                        ${friend.unread > 0 ? `<div class="unread-badge">${friend.unread}</div>` : ''}
                     `;
                     container.appendChild(div);
                 });
@@ -695,7 +700,15 @@
         }
         
         async function acceptFriend(friendName) {
-            socket.emit('accept_friend', { current: currentUser, friend: friendName });
+            if (socket) {
+                socket.emit('accept_friend', { current: currentUser, friend: friendName });
+            }
+            // Также делаем запрос на сервер через REST для надёжности
+            await fetch(`${BASE_URL}/api/accept_friend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ current: currentUser, friend: friendName })
+            });
             setTimeout(() => {
                 loadFriends();
                 loadRequests();
@@ -747,7 +760,14 @@
         });
         
         function sendFriendRequest(toUser) {
-            socket.emit('add_friend', { from: currentUser, to: toUser });
+            if (socket) {
+                socket.emit('add_friend', { from: currentUser, to: toUser });
+            }
+            fetch(`${BASE_URL}/api/add_friend`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ from: currentUser, to: toUser })
+            });
             alert(`Заявка отправлена пользователю ${toUser}`);
             closeAddFriendModal();
         }
@@ -806,11 +826,14 @@
             const text = input.value.trim();
             if (!text || !currentChatWith) return;
             
-            socket.emit('send_message', {
-                from: currentUser,
-                to: currentChatWith,
-                text: text
-            });
+            if (socket) {
+                socket.emit('send_message', {
+                    from: currentUser,
+                    to: currentChatWith,
+                    text: text
+                });
+            }
+            
             input.value = '';
             
             const tempMsg = {
@@ -829,6 +852,7 @@
         }
         
         function logout() {
+            if (refreshInterval) clearInterval(refreshInterval);
             if (socket) {
                 socket.disconnect();
             }
