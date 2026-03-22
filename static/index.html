@@ -624,36 +624,72 @@ html, body {
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         
-        @media (max-width: 600px) {
-            .sidebar {
-                position: fixed;
-                left: -280px;
-                top: 0;
-                height: 100%;
-                z-index: 100;
-                width: 280px;
-            }
-            .sidebar.open {
-                left: 0;
-            }
-            .chat-main {
-                width: 100%;
-            }
-            .mobile-menu-btn {
-                display: flex;
-                align-items: center;
-                justify-content: center;
-            }
-            .emoji-picker {
-                left: 50%;
-                transform: translateX(-50%);
-                width: 90%;
-                max-width: 320px;
-            }
-            .emoji-grid {
-                grid-template-columns: repeat(7, 1fr);
-            }
-        }
+        /* Исправление для телефона - панель ввода */
+@media (max-width: 600px) {
+    .sidebar {
+        position: fixed;
+        left: -280px;
+        top: 0;
+        height: 100%;
+        z-index: 100;
+        width: 280px;
+        background: #e6e6e6;
+        transition: left 0.3s ease;
+    }
+    .sidebar.open {
+        left: 0;
+    }
+    .chat-main {
+        width: 100%;
+        display: flex;
+        flex-direction: column;
+        height: 100vh;
+        position: relative;
+    }
+    .mobile-menu-btn {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        position: fixed;
+        bottom: 20px;
+        right: 20px;
+        z-index: 101;
+    }
+    .emoji-picker {
+        left: 50%;
+        transform: translateX(-50%);
+        width: 90%;
+        max-width: 320px;
+        bottom: 70px;
+    }
+    .emoji-grid {
+        grid-template-columns: repeat(7, 1fr);
+    }
+    
+    .input-area {
+        position: fixed;
+        bottom: 0;
+        left: 0;
+        right: 0;
+        background: #e8e8e8;
+        padding: 12px 15px;
+        z-index: 100;
+        border-top: 1px solid #d0d0d0;
+    }
+    
+    .messages-area {
+        padding-bottom: 80px;
+        margin-bottom: 0;
+        flex: 1;
+        overflow-y: auto;
+    }
+    
+    .chat-header {
+        position: sticky;
+        top: 0;
+        z-index: 10;
+    }
+}
         
         @media (min-width: 601px) {
             .mobile-menu-btn {
@@ -1214,6 +1250,22 @@ html, body {
             .then(reg => console.log('SW registered:', reg))
             .catch(err => console.error('SW failed:', err));
     }
+       // Корректировка при открытии клавиатуры на телефоне
+window.addEventListener('resize', function() {
+    if (window.innerWidth <= 600) {
+        const inputArea = document.querySelector('.input-area');
+        const messagesArea = document.querySelector('.messages-area');
+        
+        if (document.activeElement && document.activeElement.tagName === 'INPUT') {
+            // Клавиатура открыта
+            setTimeout(() => {
+                if (messagesArea) {
+                    messagesArea.scrollTop = messagesArea.scrollHeight;
+                }
+            }, 100);
+        }
+    }
+});
 </script> 
   
 </body>
