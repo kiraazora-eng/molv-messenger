@@ -624,48 +624,8 @@ html, body {
             box-shadow: 0 2px 10px rgba(0,0,0,0.3);
         }
         
-        /* Исправление для телефона - панель ввода */
+        /* Принудительное отображение панели ввода на телефоне */
 @media (max-width: 600px) {
-    .sidebar {
-        position: fixed;
-        left: -280px;
-        top: 0;
-        height: 100%;
-        z-index: 100;
-        width: 280px;
-        background: #e6e6e6;
-        transition: left 0.3s ease;
-    }
-    .sidebar.open {
-        left: 0;
-    }
-    .chat-main {
-        width: 100%;
-        display: flex;
-        flex-direction: column;
-        height: 100vh;
-        position: relative;
-    }
-    .mobile-menu-btn {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        position: fixed;
-        bottom: 20px;
-        right: 20px;
-        z-index: 101;
-    }
-    .emoji-picker {
-        left: 50%;
-        transform: translateX(-50%);
-        width: 90%;
-        max-width: 320px;
-        bottom: 70px;
-    }
-    .emoji-grid {
-        grid-template-columns: repeat(7, 1fr);
-    }
-    
     .input-area {
         position: fixed;
         bottom: 0;
@@ -673,8 +633,13 @@ html, body {
         right: 0;
         background: #e8e8e8;
         padding: 12px 15px;
-        z-index: 100;
+        z-index: 1000;
         border-top: 1px solid #d0d0d0;
+        display: flex !important;
+    }
+    
+    .chat-main {
+        padding-bottom: 70px;
     }
     
     .messages-area {
@@ -682,6 +647,7 @@ html, body {
         margin-bottom: 0;
         flex: 1;
         overflow-y: auto;
+        height: calc(100vh - 120px);
     }
     
     .chat-header {
@@ -689,6 +655,15 @@ html, body {
         top: 0;
         z-index: 10;
     }
+    
+    .sidebar {
+        z-index: 2000;
+    }
+}
+
+/* Базовые стили для панели ввода */
+.input-area {
+    display: flex;
 }
         
         @media (min-width: 601px) {
@@ -1266,6 +1241,40 @@ window.addEventListener('resize', function() {
         }
     }
 });
+
+       // Принудительное отображение панели ввода на телефоне
+function fixMobileInput() {
+    if (window.innerWidth <= 600) {
+        const inputArea = document.getElementById('inputArea');
+        const chatHeader = document.getElementById('chatHeader');
+        
+        // Если чат открыт, показываем панель ввода
+        if (chatHeader && chatHeader.style.display === 'flex') {
+            if (inputArea) {
+                inputArea.style.display = 'flex';
+                inputArea.style.position = 'fixed';
+                inputArea.style.bottom = '0';
+                inputArea.style.left = '0';
+                inputArea.style.right = '0';
+                inputArea.style.zIndex = '1000';
+                inputArea.style.background = '#e8e8e8';
+            }
+        }
+    }
+}
+
+// Вызываем при загрузке и при открытии чата
+window.addEventListener('load', fixMobileInput);
+window.addEventListener('resize', fixMobileInput);
+
+// Переопределяем openChat для исправления панели
+if (typeof openChat === 'function') {
+    const originalOpenChat = openChat;
+    window.openChat = async function(username) {
+        await originalOpenChat(username);
+        setTimeout(fixMobileInput, 100);
+    };
+}
 </script> 
   
 </body>
