@@ -9,19 +9,19 @@ app = Flask(__name__, static_folder='static')
 app.config['SECRET_KEY'] = 'molv-secret-key-2024'
 socketio = SocketIO(app, cors_allowed_origins="*")
 
-# Хранилище данных (в памяти для начала, потом заменим на БД)
-messages = []           # все сообщения
-users = {}              # username -> данные
-friends = {}            # username -> список друзей
-friend_requests = {}    # username -> входящие заявки
-online_users = set()    # кто сейчас онлайн
-
-# ============ REST API ============
+# Хранилище данных
+messages = []
+users = {}
+friends = {}
+friend_requests = {}
+online_users = set()
 
 @app.route('/')
-def index():
-    return send_from_directory('static', 'index.html')
+@app.route('/<path:path>')
+def serve_static(path='index.html'):
+    return send_from_directory('static', path)
 
+# ============ REST API ============
 @app.route('/api/login', methods=['POST'])
 def login():
     data = request.get_json()
@@ -33,7 +33,6 @@ def login():
         friend_requests[username] = []
     
     online_users.add(username)
-    
     return jsonify({'status': 'ok', 'username': username})
 
 @app.route('/api/users')
@@ -55,39 +54,16 @@ def get_friends(username):
 
 @app.route('/api/friend_requests/<username>')
 def get_friend_requests(username):
-    requests = friend_requests.get(username, [])
-    return jsonify(requests)
+    return jsonify(friend_requests.get(username, []))
 
 @app.route('/api/messages/<username>')
 def get_messages(username):
-    user_messages = [m for m in messages if m['to'] == username or m['from'] == username]
+    user_messages = [m for m in messages if m.get('to') == username or m.get('from') == username]
     return jsonify(user_messages)
 
-# ============ WebSocket события ============
-
-@socketio.on('add_friend')
-def handle_add_friend(data):
-    from_user = data['from']
-    to_user = data['to']
-    
-    if to_user not in users:
-        emit('error', {'message': 'Пользователь не найден'})
-        return
-    
-    if to_user in friends.get(from_user, []):
-        emit('error', {'message': 'Уже в друзьях'})
-        return
-    
-    if to_user not in friend_requests:
-        friend_requests[to_user] = []
-    if from_user not in friend_requests[to_user]:
-        friend_requests[to_user].append(from_user)
-        
-    # Уведомляем получателя о новой заявке
-    emit('friend_request', {'from': from_user}, room=to_user)
-
-@socketio.on('accept_friend')
-def handle_accept_friend(data):
+@app.route('/api/accept_friend', methods=['POST'])
+def api_accept_friend():
+    data = request.get_json()
     current_user = data['current']
     friend_user = data['friend']
     
@@ -104,7 +80,84 @@ def handle_accept_friend(data):
     if current_user in friend_requests and friend_user in friend_requests[current_user]:
         friend_requests[current_user].remove(friend_user)
     
-    # Уведомляем обоих о новом друге
+    return jsonify({'status': 'ok'})
+
+@app.route('/api/add_friend', methods=['POST'])
+def api_add_friend():
+    data = request.get_json()
+    from_user = data['from']
+    to_user = data['to']
+    
+    if to_user not in users:
+        return jsonify({'error': 'Пользователь не найден'}), 404
+    
+    if to_user in friends.get(from_user, []):
+        return jsonify({'error': 'Уже в друзьях'}), 400
+    
+    if to_user not in friend_requests:
+        friend_requests[to_user] = []
+    if from_user not in friend_requests[to_user]:
+        friend_requests[to_user].append(from_user)
+    
+    return jsonify({'status': 'ok'})
+
+# ============ WebSocket обработчики ============
+@socketio.on('connect')
+def handle_connect():
+    print('Client connected')
+
+@socketio.on('disconnect')
+def handle_disconnect():
+    print('Client disconnected')
+
+@socketio.on('register_online')
+def handle_register_online(data):
+    username = data.get('username')
+    if username:
+        online_users.add(username)
+        print(f'{username} онлайн')
+
+@socketio.on('add_friend')
+def handle_add_friend(data):
+    from_user = data['from']
+    to_user = data['to']
+    
+    print(f'Заявка от {from_user} для {to_user}')
+    
+    if to_user not in users:
+        emit('error', {'message': 'Пользователь не найден'})
+        return
+    
+    if to_user in friends.get(from_user, []):
+        emit('error', {'message': 'Уже в друзьях'})
+        return
+    
+    if to_user not in friend_requests:
+        friend_requests[to_user] = []
+    if from_user not in friend_requests[to_user]:
+        friend_requests[to_user].append(from_user)
+        emit('friend_request', {'from': from_user}, room=to_user)
+
+@socketio.on('accept_friend')
+def handle_accept_friend(data):
+    current_user = data['current']
+    friend_user = data['friend']
+    
+    print(f'{current_user} принял заявку от {friend_user}')
+    
+    if current_user not in friends:
+        friends[current_user] = []
+    if friend_user not in friends[current_user]:
+        friends[current_user].append(friend_user)
+    
+    if friend_user not in friends:
+        friends[friend_user] = []
+    if current_user not in friends[friend_user]:
+        friends[friend_user].append(current_user)
+    
+    if current_user in friend_requests and friend_user in friend_requests[current_user]:
+        friend_requests[current_user].remove(friend_user)
+    
     emit('friend_added', {'friend': friend_user}, room=current_user)
     emit('friend_added', {'friend': current_user}, room=friend_user)
 
@@ -121,59 +174,10 @@ def handle_send_message(data):
         'read': False
     }
     messages.append(message)
-    
-    # Отправляем сообщение получателю, если он онлайн
     emit('new_message', message, room=data['to'])
-    # Отправляем подтверждение отправителю
     emit('message_sent', message, room=data['from'])
 
-@socketio.on('typing')
-def handle_typing(data):
-    emit('typing', {
-        'from': data['from'],
-        'to': data['to']
-    }, room=data['to'])
-
-@socketio.on('read_receipt')
-def handle_read_receipt(data):
-    for msg in messages:
-        if msg['from'] == data['from'] and msg['to'] == data['to'] and not msg.get('read'):
-            msg['read'] = True
-    emit('messages_read', {
-        'from': data['from'],
-        'to': data['to']
-    }, room=data['to'])
-
-@socketio.on('connect')
-def handle_connect():
-    print('Клиент подключился')
-
-@socketio.on('disconnect')
-def handle_disconnect():
-    print('Клиент отключился')
-
-@socketio.on('register_online')
-def handle_register_online(data):
-    username = data.get('username')
-    if username:
-        online_users.add(username)
-        # Уведомляем друзей об изменении статуса
-        for friend in friends.get(username, []):
-            emit('presence_update', {
-                'user': username,
-                'online': True
-            }, room=friend)
-
-@socketio.on('unregister_online')
-def handle_unregister_online(data):
-    username = data.get('username')
-    if username and username in online_users:
-        online_users.remove(username)
-        for friend in friends.get(username, []):
-            emit('presence_update', {
-                'user': username,
-                'online': False
-            }, room=friend)
+application = app
 
 if __name__ == '__main__':
-    socketio.run(app, host='0.0.0.0', port=5000, debug=True)
+    socketio.run(app, host='0.0.0.0', port=3000, debug=True)
